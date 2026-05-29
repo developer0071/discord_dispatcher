@@ -1,17 +1,23 @@
 import os
 import sys
-import requests
+import time
+import random
+from curl_cffi import requests
 
 def run_dispatcher():
-    # Extract credentials from GitHub Actions secrets
+    # Introduce architectural jitter (1 to 8 minutes delay)
+    # This ensures the API call lands at a completely different time each cycle
+    sleep_duration = random.randint(60, 480)
+    print(f"[INFO] Injecting timing entropy. Sleeping for {sleep_duration} seconds...")
+    time.sleep(sleep_duration)
+
     auth_token = os.environ.get("DISCORD_TOKEN")
     channel_id = os.environ.get("CHANNEL_ID")
     
     if not auth_token or not channel_id:
-        print("[CRITICAL] Missing essential configuration values (DISCORD_TOKEN or CHANNEL_ID).", file=sys.stderr)
+        print("[CRITICAL] Missing environment variables.", file=sys.stderr)
         sys.exit(1)
 
-    # Read the message payload from message.txt
     try:
         with open("message.txt", "r", encoding="utf-8") as file:
             broadcast_content = file.read().strip()
@@ -20,16 +26,18 @@ def run_dispatcher():
             print("[CRITICAL] message.txt is empty.", file=sys.stderr)
             sys.exit(1)
     except FileNotFoundError:
-        print("[CRITICAL] message.txt not found in the root directory.", file=sys.stderr)
+        print("[CRITICAL] message.txt missing.", file=sys.stderr)
         sys.exit(1)
 
-    api_endpoint = f"https://discord.com/api/v9/channels/{channel_id}/messages"
+    api_endpoint = f"https://discord.com/api/v10/channels/{channel_id}/messages"
     
-    # Headers optimized to mimic a standard browser payload
     request_headers = {
         "Authorization": auth_token,
         "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+        "Accept": "*/*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Origin": "https://discord.com",
+        "Referer": f"https://discord.com/channels/@me/{channel_id}"
     }
     
     request_payload = {
@@ -38,18 +46,23 @@ def run_dispatcher():
     }
 
     try:
-        response = requests.post(api_endpoint, json=request_payload, headers=request_headers)
+        response = requests.post(
+            api_endpoint, 
+            json=request_payload, 
+            headers=request_headers,
+            impersonate="chrome120" 
+        )
         
-        if response.status_code == 200:
-            print("[INFO] Message dispatched and verified successfully.")
+        if response.status_code in [200, 201]:
+            print("[INFO] Payload delivered successfully.")
             sys.exit(0)
         else:
-            print(f"[ERROR] API Rejected Request. Status Code: {response.status_code}", file=sys.stderr)
-            print(f"[DEBUG] Server Response: {response.text}", file=sys.stderr)
+            print(f"[ERROR] Request blocked. Status: {response.status_code}", file=sys.stderr)
+            print(f"[DEBUG] Raw response: {response.text}", file=sys.stderr)
             sys.exit(1)
             
-    except requests.exceptions.RequestException as error:
-        print(f"[CRITICAL] Network request failure encountered: {error}", file=sys.stderr)
+    except Exception as error:
+        print(f"[CRITICAL] Network layer exception: {error}", file=sys.stderr)
         sys.exit(1)
 
 if __name__ == "__main__":
