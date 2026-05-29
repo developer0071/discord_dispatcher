@@ -3,8 +3,14 @@ name: Discord Automation Pipeline
 on:
   workflow_dispatch: # Allows manual execution directly from the GitHub Actions UI
   schedule:
-    # Runs every 6 hours, offset by 14 minutes to bypass GitHub queue delays
-    - cron: '14 */6 * * *'
+    # True rolling 7-hour interval offset by 14 minutes (Calculated across a 7-day cycle)
+    - cron: '14 0,7,14,21 * * 0'  # Sunday
+    - cron: '14 4,11,18 * * 1'     # Monday
+    - cron: '14 1,8,15,22 * * 2'   # Tuesday
+    - cron: '14 5,12,19 * * 3'     # Wednesday
+    - cron: '14 2,9,16,23 * * 4'   # Thursday
+    - cron: '14 6,13,20 * * 5'     # Friday
+    - cron: '14 3,10,17 * * 6'     # Saturday
 
 jobs:
   execute-broadcast:
@@ -27,7 +33,6 @@ jobs:
 
     - name: Execute Messaging Script
       env:
-        # Inject repository secrets safely into the runner's workspace environment
         DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
         CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
       run: python send_message.py
