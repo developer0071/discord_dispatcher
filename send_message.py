@@ -13,10 +13,16 @@ def run_dispatcher():
 
     auth_token = os.environ.get("DISCORD_TOKEN")
     channel_id = os.environ.get("CHANNEL_ID")
+    proxy_url = os.environ.get("PROXY_URL")  # e.g. socks5://user:pass@ip:port or http://user:pass@ip:port
     
     if not auth_token or not channel_id:
         print("[CRITICAL] Missing environment variables.", file=sys.stderr)
         sys.exit(1)
+    
+    if proxy_url:
+        print(f"[INFO] Routing through proxy.")
+    else:
+        print("[WARN] No PROXY_URL set. Using direct connection (datacenter IP).")
 
     try:
         with open("message.txt", "r", encoding="utf-8") as file:
@@ -50,7 +56,8 @@ def run_dispatcher():
             api_endpoint, 
             json=request_payload, 
             headers=request_headers,
-            impersonate="chrome120" 
+            impersonate="chrome120",
+            proxy=proxy_url
         )
         
         if response.status_code in [200, 201]:

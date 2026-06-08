@@ -35,4 +35,5 @@ jobs:
       env:
         DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
         CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
+        PROXY_URL: ${{ secrets.PROXY_URL }}
       run: python send_message.py
