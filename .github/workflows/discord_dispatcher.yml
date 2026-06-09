@@ -1,39 +1,46 @@
 name: Discord Automation Pipeline
 
 on:
-  workflow_dispatch: # Allows manual execution directly from the GitHub Actions UI
+  workflow_dispatch:
   schedule:
-    # True rolling 7-hour interval offset by 14 minutes (Calculated across a 7-day cycle)
-    - cron: '14 0,7,14,21 * * 0'  # Sunday
-    - cron: '14 4,11,18 * * 1'     # Monday
-    - cron: '14 1,8,15,22 * * 2'   # Tuesday
-    - cron: '14 5,12,19 * * 3'     # Wednesday
-    - cron: '14 2,9,16,23 * * 4'   # Thursday
-    - cron: '14 6,13,20 * * 5'     # Friday
-    - cron: '14 3,10,17 * * 6'     # Saturday
+    # Every ~7 hours, dynamically spread across the week.
+    # Offset by 23 minutes to avoid GitHub's busy :00 slots.
+    # Pattern: 0, 7, 14, 21 hours UTC — repeating every day.
+    - cron: '23 0,7,14,21 * * *'
 
 jobs:
   execute-broadcast:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-    - name: Configure Python Environment
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-        cache: 'pip'
+      - name: Configure Python Environment
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
 
-    - name: Install Project Dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-    - name: Execute Messaging Script
-      env:
-        DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
-        CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
-        PROXY_URL: ${{ secrets.PROXY_URL }}
-      run: python send_message.py
+      - name: Validate Secrets
+        run: |
+          if [ -z "${{ secrets.DISCORD_TOKEN }}" ]; then
+            echo "[CRITICAL] DISCORD_TOKEN secret is not set."
+            exit 1
+          fi
+          if [ -z "${{ secrets.CHANNEL_ID }}" ]; then
+            echo "[CRITICAL] CHANNEL_ID secret is not set."
+            exit 1
+          fi
+
+      - name: Execute Messaging Script
+        env:
+          DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+          CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
+          PROXY_URL: ${{ secrets.PROXY_URL }}
+        run: python send_message.py
