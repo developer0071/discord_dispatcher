@@ -5,27 +5,16 @@ import random
 from curl_cffi import requests
 
 def run_dispatcher():
-    # Jitter between 1–5 minutes to avoid pattern detection
     sleep_duration = random.randint(60, 300)
     print(f"[INFO] Sleeping for {sleep_duration} seconds before sending...")
     time.sleep(sleep_duration)
 
-    auth_token = os.environ.get("DISCORD_TOKEN")
-    channel_id = os.environ.get("CHANNEL_ID")
-    proxy_url = os.environ.get("PROXY_URL", "").strip()
+    auth_token = os.environ.get("DISCORD_TOKEN", "").strip()
+    channel_id = os.environ.get("CHANNEL_ID", "").strip()
 
     if not auth_token or not channel_id:
         print("[CRITICAL] Missing DISCORD_TOKEN or CHANNEL_ID.", file=sys.stderr)
         sys.exit(1)
-
-    # Normalize token — add "Bot " prefix only if it's a bot token
-    # For user tokens, use as-is (no prefix)
-    auth_token = auth_token.strip()
-
-    if proxy_url:
-        print(f"[INFO] Proxy configured. Routing through proxy.")
-    else:
-        print("[WARN] No PROXY_URL set. Using direct connection.")
 
     try:
         with open("message.txt", "r", encoding="utf-8") as f:
@@ -54,28 +43,14 @@ def run_dispatcher():
         "tts": False
     }
 
-    proxies = None
-    if proxy_url:
-        proxies = proxy_url  # curl_cffi accepts proxy as a string directly
-
     try:
-        if proxies:
-            response = requests.post(
-                api_endpoint,
-                json=request_payload,
-                headers=request_headers,
-                impersonate="chrome120",
-                proxy=proxies,
-                timeout=30
-            )
-        else:
-            response = requests.post(
-                api_endpoint,
-                json=request_payload,
-                headers=request_headers,
-                impersonate="chrome120",
-                timeout=30
-            )
+        response = requests.post(
+            api_endpoint,
+            json=request_payload,
+            headers=request_headers,
+            impersonate="chrome120",
+            timeout=30
+        )
 
         if response.status_code in [200, 201]:
             print("[INFO] Message delivered successfully.")
@@ -99,26 +74,6 @@ def run_dispatcher():
 
     except Exception as e:
         print(f"[CRITICAL] Network exception: {e}", file=sys.stderr)
-        # If proxy failed, retry once without proxy
-        if proxy_url:
-            print("[INFO] Proxy failed. Retrying without proxy...", file=sys.stderr)
-            try:
-                response = requests.post(
-                    api_endpoint,
-                    json=request_payload,
-                    headers=request_headers,
-                    impersonate="chrome120",
-                    timeout=30
-                )
-                if response.status_code in [200, 201]:
-                    print("[INFO] Message delivered successfully (direct fallback).")
-                    sys.exit(0)
-                else:
-                    print(f"[ERROR] Fallback also failed. Status: {response.status_code}", file=sys.stderr)
-                    sys.exit(1)
-            except Exception as e2:
-                print(f"[CRITICAL] Fallback also threw exception: {e2}", file=sys.stderr)
-                sys.exit(1)
         sys.exit(1)
 
 if __name__ == "__main__":

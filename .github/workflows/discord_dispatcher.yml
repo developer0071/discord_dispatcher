@@ -3,9 +3,6 @@ name: Discord Automation Pipeline
 on:
   workflow_dispatch:
   schedule:
-    # Every ~7 hours, dynamically spread across the week.
-    # Offset by 23 minutes to avoid GitHub's busy :00 slots.
-    # Pattern: 0, 7, 14, 21 hours UTC — repeating every day.
     - cron: '23 0,7,14,21 * * *'
 
 jobs:
@@ -42,5 +39,4 @@ jobs:
         env:
           DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
           CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
-          PROXY_URL: ${{ secrets.PROXY_URL }}
         run: python send_message.py
